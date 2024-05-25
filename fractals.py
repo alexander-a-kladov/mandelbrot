@@ -85,7 +85,7 @@ void main() {
     }
     vec3 col = vec3(0.0, 0.0, 0.5);
     if (i<cycles) {
-     col = vec3(1.0, 0.8, 0.4)*(i/30.0);
+     col = vec3(1.0, 0.8, 0.4)*(i/500.0);
     }
     f_color = vec4(col, 1.0);
 }
@@ -108,7 +108,7 @@ class ScreenData():
         self.MAX_ZOOM_SPEED = 2500
         self.MAX_ZOOM = 5.0
         self.MIN_ZOOM = 0.00001
-        self.MAX_CYCLES = 1000
+        self.MAX_CYCLES = 2000
         self.zoom = self.MAX_ZOOM
         self.dx = 0.0
         self.dy = 0.0
