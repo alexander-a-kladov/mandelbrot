@@ -40,6 +40,7 @@ frag_shader = '''
 
 uniform float angle;
 uniform float scale;
+uniform int cycles;
 uniform vec2 resolution;
 uniform vec2 offset;
 
@@ -76,14 +77,14 @@ void main() {
     dvec2 z0 = scale2D(uv)+offset/resolution.y;
     dvec2 z = dvec2(0.0,0.0);
     int i = 0;
-    for  (i = 0; i<300; i++) {
+    for  (i = 0; i<cycles; i++) {
       z = SquareZ(z) + z0;
       if (Module(z) > 2.0) {
        break;
       }
     }
-    vec3 col = vec3(0.0, 0.0, 0.0);
-    if (i<300) {
+    vec3 col = vec3(0.0, 0.0, 0.5);
+    if (i<cycles) {
      col = vec3(1.0, 0.8, 0.4)*(i/30.0);
     }
     f_color = vec4(col, 1.0);
@@ -93,109 +94,119 @@ void main() {
 program = ctx.program(vertex_shader=vert_shader, fragment_shader=frag_shader)
 render_object = ctx.vertex_array(program, [(quad_buffer, '2f', 'vert')])
 
-def surf_to_texture(surf):
-    tex = ctx.texture(surf.get_size(), 4)
-    tex.filter = (moderngl.LINEAR, moderngl.LINEAR)
-    tex.swizzle = 'BGRA'
-    tex.write(surf.get_view('1'))
-    return tex
-
 def rotate2D(dxdy, a):
     s = m.sin(a);
     c = m.cos(a);
     return (dxdy[0]*c-dxdy[1]*s, dxdy[0]*s+dxdy[1]*c);
 
-if __name__ == "__main__":
-    t = 0
-    speed = 0.0
-    angle = 0.0
-    zoom_speed = 0.0
-    MAX_SPEED = 180.0
-    MAX_ZOOM_SPEED = 2500
-    MAX_ZOOM = 5.0
-    MIN_ZOOM = 0.00001
-    zoom = MAX_ZOOM
-    dx = 0.0
-    dy = 0.0
-    s_dx = 0.0
-    s_dy = 0.0
-    speed = 0.0
-    
-    if speed < -180.0 or speed > 180.0:
-        speed = 0.0
-    
-    pygame.display.set_caption(f'Zoom {round(1.0/zoom,3)} angle {-angle} deg xy_center {dx:.3f},{dy:.3f}')
-    
-    pygame.key.set_repeat(150)
-
-    while True:
-        display.fill((0, 0, 0))
-    
-        t += 1
-    
+class ScreenData():
+    def __init__(self):
+        self.speed = 0.0
+        self.angle = 0.0
+        self.zoom_speed = 0.0
+        self.MAX_SPEED = 180.0
+        self.MAX_ZOOM_SPEED = 2500
+        self.MAX_ZOOM = 5.0
+        self.MIN_ZOOM = 0.00001
+        self.MAX_CYCLES = 1000
+        self.zoom = self.MAX_ZOOM
+        self.dx = 0.0
+        self.dy = 0.0
+        self.s_dx = 0.0
+        self.s_dy = 0.0
+        self.speed = 0.0
+        self.cycles = self.MAX_CYCLES
+        
+    def readEvents(self):
+        redraw = False
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_LEFT:
-                    if speed < MAX_SPEED:
-                        speed += 0.5
+                    if self.speed < self.MAX_SPEED:
+                        self.speed += 0.5
+                    redraw = True
                 elif event.key == pygame.K_RIGHT:
-                    if speed > -MAX_SPEED:
-                        speed -= 0.5
+                    if self.speed > -self.MAX_SPEED:
+                        self.speed -= 0.5
+                    redraw = True
                 elif event.key == pygame.K_DOWN:
-                    if zoom_speed < MAX_ZOOM_SPEED:
-                        zoom_speed += 0.01
+                    if self.zoom_speed < self.MAX_ZOOM_SPEED:
+                        self.zoom_speed += 0.01
+                    redraw = True
                 elif event.key == pygame.K_UP:
-                    if zoom_speed > -MAX_ZOOM_SPEED:
-                        zoom_speed -= 0.01
+                    if self.zoom_speed > -self.MAX_ZOOM_SPEED:
+                        self.zoom_speed -= 0.01
+                    redraw = True
                 if event.key == pygame.K_a:
-                    s_dx -= 5.0
+                    self.s_dx -= 5.0
+                    redraw = True
                 elif event.key == pygame.K_d:
-                    s_dx += 5.0
+                    self.s_dx += 5.0
+                    redraw = True
                 elif event.key == pygame.K_w:
-                    s_dy += 5.0
+                    self.s_dy += 5.0
+                    redraw = True
                 elif event.key == pygame.K_s:
-                    s_dy -= 5.0
+                    self.s_dy -= 5.0
+                    redraw = True
                 elif event.key == pygame.K_SPACE:
-                    speed = 0.0
-                    zoom_speed = 0.0
-                    s_dx = 0.0
-                    s_dy = 0.0
-                    dx = 0.0
-                    dy = 0.0
-                    angle = 0.0
-                    zoom = MAX_ZOOM
+                    self.speed = 0.0
+                    self.zoom_speed = 0.0
+                    self.s_dx = 0.0
+                    self.s_dy = 0.0
+                    self.dx = 0.0
+                    self.dy = 0.0
+                    self.angle = 0.0
+                    self.zoom = self.MAX_ZOOM
+                    redraw = True
             elif event.type == pygame.KEYUP:
-                    speed = 0.0
-                    zoom_speed = 0.0
-                    s_dx = 0.0
-                    s_dy = 0.0
-       
-        angle += speed
-        s_dx1, s_dy1 = rotate2D((s_dx,s_dy), -angle*DEG_RAD)
-        dx += s_dx1*zoom
-        dy += s_dy1*zoom
+                    self.speed = 0.0
+                    self.zoom_speed = 0.0
+                    self.s_dx = 0.0
+                    self.s_dy = 0.0
+                    redraw = True
+        return redraw
+
+    def updateScreen(self):
+        self.angle += self.speed
+        s_dx1, s_dy1 = rotate2D((self.s_dx,self.s_dy), -self.angle*DEG_RAD)
+        self.dx += s_dx1*self.zoom
+        self.dy += s_dy1*self.zoom
     
-        if zoom > MIN_ZOOM and zoom < MAX_ZOOM:
-            zoom += zoom_speed*zoom
-        if zoom <= MIN_ZOOM:
-            zoom_speed = 0.0
-            zoom = MIN_ZOOM+MIN_ZOOM/10.0
-        if zoom >= MAX_ZOOM:
-            zoom_speed = 0.0
-            zoom = MAX_ZOOM-MIN_ZOOM
+        if self.zoom > self.MIN_ZOOM and self.zoom < self.MAX_ZOOM:
+            self.zoom += self.zoom_speed*self.zoom
+        if self.zoom <= self.MIN_ZOOM:
+            self.zoom_speed = 0.0
+            self.zoom = self.MIN_ZOOM+self.MIN_ZOOM/10.0
+        if self.zoom >= self.MAX_ZOOM:
+            self.zoom_speed = 0.0
+            self.zoom = self.MAX_ZOOM-self.MIN_ZOOM
             
-        pygame.display.set_caption(f'Zoom {round(1.0/zoom,3)} angle {angle} deg xy_center {dx/SCR_SIZE:.5f},{dy/SCR_SIZE:.5f} size {zoom:.5f}')
+        pygame.display.set_caption(f'Zoom {round(1.0/self.zoom,3)} angle {self.angle} deg xy_center {self.dx/SCR_SIZE:.5f},{self.dy/SCR_SIZE:.5f} size {self.zoom:.5f}')
     
-        program['resolution'] = (800.0,800.0)
-        program['angle'] = angle*DEG_RAD
-        program['offset'] = (dx,dy)
-        program['scale'] = zoom
+        program['resolution'] = (float(SCR_SIZE),float(SCR_SIZE))
+        program['cycles'] = self.cycles
+        program['angle'] = self.angle*DEG_RAD
+        program['offset'] = (self.dx,self.dy)
+        program['scale'] = self.zoom
         render_object.render(mode=moderngl.TRIANGLE_STRIP)
     
         pygame.display.flip()
-    
+
+
+if __name__ == "__main__":
+    t = 0
+    screen = ScreenData()
+    pygame.key.set_repeat(50)
+
+    while True:
+
+        if (t==0 or screen.readEvents()):
+            display.fill((0, 0, 0))
+            screen.updateScreen();
+        t += 1
         clock.tick(25)
     
