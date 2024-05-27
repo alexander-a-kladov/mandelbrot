@@ -58,11 +58,7 @@ vec2 scale2D(vec2 uv) {
  return scale*uv;
 }
 
-float Dist(dvec2 uv) {
- return float(sqrt(uv.x*uv.x+uv.y*uv.y));
-}
-
-float Module(dvec2 uv) {
+float SquareM(dvec2 uv) {
  return float(uv.x*uv.x+uv.y*uv.y);
 } 
 
@@ -73,14 +69,13 @@ dvec2 SquareZ(dvec2 z) {
 void main() {
     vec2 uv = (gl_FragCoord.xy - 0.5 * resolution.xy) / resolution.y;
     
-    float value = 0.0;
     uv = rotate2D(uv, angle);
     dvec2 z0 = scale2D(uv)+offset/resolution.y;
     dvec2 z = dvec2(0.0,0.0);
     int i = 0;
     for  (i = 0; i<cycles; i++) {
       z = SquareZ(z) + z0;
-      if (Module(z) > 2.0) {
+      if (SquareM(z) > 4.0) {
        break;
       }
     }
