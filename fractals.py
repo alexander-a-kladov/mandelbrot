@@ -40,6 +40,7 @@ frag_shader = '''
 
 uniform float angle;
 uniform float scale;
+uniform float brightness_div;
 uniform int cycles;
 uniform vec2 resolution;
 uniform vec2 offset;
@@ -85,8 +86,8 @@ void main() {
     }
     vec3 col = vec3(0.0, 0.0, 0.5);
     if (i<cycles) {
-     col = vec3(1.0, 0.8, 0.4)*(i/500.0);
-    }
+     col = vec3(1.0, 0.8, 0.4)*(i/brightness_div);
+    } 
     f_color = vec4(col, 1.0);
 }
 '''
@@ -115,6 +116,9 @@ class ScreenData():
         self.s_dx = 0.0
         self.s_dy = 0.0
         self.speed = 0.0
+        self.BRIGHT_MAX = 500
+        self.BRIGHT_MIN = 50
+        self.brightness_div = self.BRIGHT_MAX
         self.cycles = self.MAX_CYCLES
         
     def readEvents(self):
@@ -152,6 +156,14 @@ class ScreenData():
                 elif event.key == pygame.K_s:
                     self.s_dy -= 5.0
                     redraw = True
+                elif event.key == pygame.K_z:
+                    if self.brightness_div < self.BRIGHT_MAX:
+                        self.brightness_div += 10
+                    redraw = True
+                elif event.key == pygame.K_x:
+                    if self.brightness_div > self.BRIGHT_MIN:
+                        self.brightness_div -= 10
+                    redraw = True
                 elif event.key == pygame.K_SPACE:
                     self.speed = 0.0
                     self.zoom_speed = 0.0
@@ -160,6 +172,7 @@ class ScreenData():
                     self.dx = 0.0
                     self.dy = 0.0
                     self.angle = 0.0
+                    self.brightness_div = self.BRIGHT_MAX
                     self.zoom = self.MAX_ZOOM
                     redraw = True
             elif event.type == pygame.KEYUP:
@@ -185,10 +198,11 @@ class ScreenData():
             self.zoom_speed = 0.0
             self.zoom = self.MAX_ZOOM-self.MIN_ZOOM
             
-        pygame.display.set_caption(f'Zoom {round(1.0/self.zoom,3)} angle {self.angle} deg xy_center {self.dx/SCR_SIZE:.5f},{self.dy/SCR_SIZE:.5f} size {self.zoom:.5f}')
+        pygame.display.set_caption(f'Brightness {1.0/self.brightness_div:.3f} Zoom {round(1.0/self.zoom,3)} angle {self.angle} deg xy_center {self.dx/SCR_SIZE:.5f},{self.dy/SCR_SIZE:.5f} size {self.zoom:.5f}')
     
         program['resolution'] = (float(SCR_SIZE),float(SCR_SIZE))
         program['cycles'] = self.cycles
+        program['brightness_div'] = self.brightness_div
         program['angle'] = self.angle*DEG_RAD
         program['offset'] = (self.dx,self.dy)
         program['scale'] = self.zoom
