@@ -9,4 +9,6 @@ Up, Down - Zoom
 
 A,S,W,D - Navigate
 
+Z,X - Brightness
+
 Space - Reset
